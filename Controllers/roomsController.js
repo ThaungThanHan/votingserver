@@ -4,6 +4,7 @@ const roomsSchema = new mongoose.Schema({
     _id:String,
     roomName:String,
     roomDesc:String,
+    host:String,
     endDateTime:Date,
     num_voters:Number,
     voters_limit:Number,
@@ -46,17 +47,18 @@ export const getRoomById = async(req,res) => {
 
 export const createRooms = async(req,res) => {
     try{
-        const {_id,roomName,roomDesc,endDateTime,num_participants,num_voters,winner,participants,voters_limit} = req.body;
+        const {_id,roomName,roomDesc,endDateTime,num_participants,num_voters,winner,participants,voters_limit,currentUserId} = req.body;
         const roomData = new roomsModel({
             _id:_id,
             roomName:roomName,
             roomDesc:roomDesc,
+            host:currentUserId,
             endDateTime:endDateTime,
             num_voters:num_voters,
             voters_limit:voters_limit,
             num_participants:num_participants,
             participants:participants,
-            winner:winner
+            winner:winner,
         })
         await roomData.save();
         res.send(`Voting room with ID ${_id} is successfully created!`)

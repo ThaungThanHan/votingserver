@@ -39,17 +39,25 @@ export const LoginUser = async(req,res) => {
     try{
         const User = await usersModel.findOne({"username":req.body.username});
         if(!User){
-            res.status(404).send(`User with username ${req.body.username} not found!`)
+            res.status(404).send({error:`User with username "${req.body.username}" not found!`})
         }else{
-            const token = jwt.sign({id:User._id},process.env.SECRET_KEY,{
-                expiresIn:86400
-            })
-            res.status(200).send({
-                id:User._id,
-                authToken:token
-            })
+            const passwordMatching = bcrypt.compareSync(req.body.password,User.password);
+            if(!passwordMatching){
+                res.status(401).send({
+                    accessToken:null,
+                    error:"Invalid password"
+                })
+            }else{
+                const token = jwt.sign({id:User._id},process.env.SECRET_KEY,{
+                    expiresIn:86400
+                })
+                res.status(200).send({
+                    userId:User._id,
+                    authToken:token
+                })
+            }
         }
-    }catch{
-
+    }catch(err){
+        console.log(err)
     }
 }
