@@ -61,3 +61,13 @@ export const LoginUser = async(req,res) => {
         console.log(err)
     }
 }
+
+export const getUser = async(req,res) => {
+    try{
+        const userId = req.params.id
+        const User = await usersModel.findOne({_id:userId})
+        res.send(User)
+    }catch(err){
+        console.log(err)
+    }
+}

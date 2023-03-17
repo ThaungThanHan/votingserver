@@ -1,4 +1,8 @@
 import {mongoose} from "mongoose";
+import AWS from "aws-sdk";
+import * as dotenv from 'dotenv'
+dotenv.config()
+import fs from "fs"
 
 const roomsSchema = new mongoose.Schema({
     _id:String,
@@ -13,6 +17,42 @@ const roomsSchema = new mongoose.Schema({
     winner:Object
 },{collection:"voting_rooms"},{versionKey:false})
 const roomsModel = mongoose.model("Rooms",roomsSchema)
+
+const s3 = new AWS.S3({
+    accessKeyId:process.env.ACCESS_KEY_S3,
+    secretAccessKey:process.env.SECRET_ACCESS_KEY_S3,
+    region:process.env.AWS_REGION
+})
+
+const uploadImage = async (file,roomId,participantName,index,participants) => {
+    console.log(file)
+    if(file.mimetype == "image/jpeg"){
+        var fileType = "jpg"
+    }else if(file.mimetype == "image/png"){
+        var fileType = "png"
+    }
+    // const base64File = file.toString("base64")
+    const imageBuffer = fs.readFileSync(file.path)
+    const uploadParams = {
+        Bucket:process.env.BUCKET_NAME,
+        Key:`images/${roomId}-${participantName}.${fileType}`,
+        Body:imageBuffer,
+        ContentType:file.mimetype,
+    }
+    return new Promise((resolve, reject) => {
+        s3.upload(uploadParams, (err, data) => {
+          if (err) {
+            console.log("Error uploading file ", err);
+            reject(err);
+          } else {
+            console.log("File uploaded successfully");
+            participants[index].avatar = data.Location;
+            console.log(participants);
+            resolve(participants);
+          }
+        });
+      });
+}
 
 export const getRoomById = async(req,res) => {
     try{
@@ -45,9 +85,24 @@ export const getRoomById = async(req,res) => {
     }
 }
 
+export const deleteRoomById = async(req,res) => {
+    try{
+        const deletedRoom = await roomsModel.deleteOne({_id:req.params.id})
+        res.send(`Room with ID ${req.params.id} has been deleted.`)
+    }catch(err){
+        console.log(err)
+    }
+}
+
 export const createRooms = async(req,res) => {
     try{
-        const {_id,roomName,roomDesc,endDateTime,num_participants,num_voters,winner,participants,voters_limit,currentUserId} = req.body;
+        const {_id,roomName,roomDesc,endDateTime,num_participants,num_voters,winner,voters_limit,currentUserId} = req.body;
+        const parsedParticipants = JSON.parse(req.body.participants)
+        const promises = req.files.map((image, index) => {
+            return uploadImage(image, _id, parsedParticipants[index].name, index, parsedParticipants);
+          });
+        const updatedParicipants = await Promise.all(promises)
+        updatedParicipants.splice(1,1);
         const roomData = new roomsModel({
             _id:_id,
             roomName:roomName,
@@ -57,7 +112,7 @@ export const createRooms = async(req,res) => {
             num_voters:num_voters,
             voters_limit:voters_limit,
             num_participants:num_participants,
-            participants:participants,
+            participants:updatedParicipants[0],
             winner:winner,
         })
         await roomData.save();
@@ -67,6 +122,9 @@ export const createRooms = async(req,res) => {
     }
 }
 
+export const uploadPicture = async(req,res) => {
+    res.send(req.files)
+}
 export const voteById = async (req,res) => {
     try{
         const roomId = req.params.id;
@@ -93,5 +151,14 @@ export const voteById = async (req,res) => {
         res.send(`voted for ${optionId}`)
     }catch{
 
+    }
+}
+
+export const getRoomsByHost = async(req,res) => {
+    try{
+        const Rooms = await roomsModel.find({host:req.body.userId})
+        res.send(Rooms)
+    }catch(err){
+        console.log(err)
     }
 }
