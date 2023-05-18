@@ -30,7 +30,7 @@ router.patch("/:id",voteById)
 router.post("/host",verifyToken,getRoomsByHost)
 router.post("/",upload.any('files'),createRooms)
 router.post("/uploadpicture",uploadPicture);
-router.post("/delete/:id",deleteRoomById);
+router.post("/delete/:id",verifyToken,deleteRoomById);
 
 
 process.on('SIGINT', function () {

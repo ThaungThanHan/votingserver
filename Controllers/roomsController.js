@@ -3,11 +3,13 @@ import AWS from "aws-sdk";
 import * as dotenv from 'dotenv'
 dotenv.config()
 import fs from "fs"
+import QRCode from "qrcode";
 
 const roomsSchema = new mongoose.Schema({
     _id:String,
     roomName:String,
     roomDesc:String,
+    roomQR:String,
     host:String,
     endDateTime:Date,
     num_voters:Number,
@@ -45,9 +47,7 @@ const uploadImage = async (file,roomId,participantName,index,participants) => {
             console.log("Error uploading file ", err);
             reject(err);
           } else {
-            console.log("File uploaded successfully");
             participants[index].avatar = data.Location;
-            console.log(participants);
             resolve(participants);
           }
         });
@@ -90,29 +90,30 @@ export const deleteRoomById = async(req,res) => {
         const deletedRoom = await roomsModel.deleteOne({_id:req.params.id})
         res.send(`Room with ID ${req.params.id} has been deleted.`)
     }catch(err){
-        console.log(err)
+        res.send(err)
     }
 }
-
 export const createRooms = async(req,res) => {
     try{
-        const {_id,roomName,roomDesc,endDateTime,num_participants,num_voters,winner,voters_limit,currentUserId} = req.body;
-        const parsedParticipants = JSON.parse(req.body.participants)
+        const {_id,roomName,roomQR,roomDesc,endDateTime,num_participants,num_voters,winner,voters_limit,currentUserId} = req.body;
+        const parsedParticipants = JSON.parse(req.body.participants);
+
         const promises = req.files.map((image, index) => {
             return uploadImage(image, _id, parsedParticipants[index].name, index, parsedParticipants);
           });
-        const updatedParicipants = await Promise.all(promises)
-        updatedParicipants.splice(1,1);
+        const updatedParticipants = await Promise.all(promises)
+        updatedParticipants.splice(1,1);
         const roomData = new roomsModel({
             _id:_id,
             roomName:roomName,
             roomDesc:roomDesc,
+            roomQR:roomQR,
             host:currentUserId,
             endDateTime:endDateTime,
             num_voters:num_voters,
             voters_limit:voters_limit,
             num_participants:num_participants,
-            participants:updatedParicipants[0],
+            participants:updatedParticipants[0],
             winner:winner,
         })
         await roomData.save();
