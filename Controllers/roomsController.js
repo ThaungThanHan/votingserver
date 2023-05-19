@@ -46,7 +46,7 @@ const uploadImage = async (file,roomId,participantName,index,participants) => {
           if (err) {
             console.log("Error uploading file ", err);
             reject(err);
-          } else {
+          }else{
             participants[index].avatar = data.Location;
             resolve(participants);
           }
@@ -97,27 +97,47 @@ export const createRooms = async(req,res) => {
     try{
         const {_id,roomName,roomQR,roomDesc,endDateTime,num_participants,num_voters,winner,voters_limit,currentUserId} = req.body;
         const parsedParticipants = JSON.parse(req.body.participants);
+        if(req.files.length > 0){
+            const promises = req.files.map((image, index) => {
+                return uploadImage(image, _id, parsedParticipants[index].name, index, parsedParticipants);
+              });
+            const updatedParticipants = await Promise.all(promises);
+            updatedParticipants.splice(1,1);
+            const roomData = new roomsModel({
+                _id:_id,
+                roomName:roomName,
+                roomDesc:roomDesc,
+                roomQR:roomQR,
+                host:currentUserId,
+                endDateTime:endDateTime,
+                num_voters:num_voters,
+                voters_limit:voters_limit,
+                num_participants:num_participants,
+                participants:updatedParticipants[0],
+                winner:winner,
+            })
+            await roomData.save();
+            res.send(`Voting room with ID ${_id} is successfully created!`)
+        }else{
+            const roomData = new roomsModel({
+                _id:_id,
+                roomName:roomName,
+                roomDesc:roomDesc,
+                roomQR:roomQR,
+                host:currentUserId,
+                endDateTime:endDateTime,
+                num_voters:num_voters,
+                voters_limit:voters_limit,
+                num_participants:num_participants,
+                participants:parsedParticipants,
+                winner:winner,
+            })
+            await roomData.save();
+            res.send(`Voting room with ID ${_id} is successfully created!`)
+            res.send(parsedParticipants);
+        }
 
-        const promises = req.files.map((image, index) => {
-            return uploadImage(image, _id, parsedParticipants[index].name, index, parsedParticipants);
-          });
-        const updatedParticipants = await Promise.all(promises)
-        updatedParticipants.splice(1,1);
-        const roomData = new roomsModel({
-            _id:_id,
-            roomName:roomName,
-            roomDesc:roomDesc,
-            roomQR:roomQR,
-            host:currentUserId,
-            endDateTime:endDateTime,
-            num_voters:num_voters,
-            voters_limit:voters_limit,
-            num_participants:num_participants,
-            participants:updatedParticipants[0],
-            winner:winner,
-        })
-        await roomData.save();
-        res.send(`Voting room with ID ${_id} is successfully created!`)
+
     }catch(err){
         console.error(err)
     }
