@@ -71,3 +71,18 @@ export const getUser = async(req,res) => {
         console.log(err)
     }
 }
+
+export const verifyUser = async(req,res) => {
+            const token = req.headers.authorization?.split(' ')[1];
+            if(!token){
+                res.send(401).send('Unauthorized via verifyToken')
+            }else{
+                jwt.verify(token,process.env.SECRET_KEY,(err,decoded)=>{
+                    if(err){
+                        res.status(401).send("Unauthorized via verifiedToken")
+                    }else{
+                        res.send("Token Verified.")
+                    }
+                })
+            }
+        };
