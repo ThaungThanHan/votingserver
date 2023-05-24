@@ -1,6 +1,7 @@
 import {mongoose,Schema} from "mongoose";
 import express from "express";
-import { createRooms, getRoomById, getRoomsByHost, voteById, deleteRoomById, uploadPicture } from "../Controllers/roomsController.js";
+import { createRooms, getRoomById, createEmailTokens,getRoomsByHost, voteById, 
+    deleteRoomById, uploadPicture } from "../Controllers/roomsController.js";
 const router = express.Router();
 import jwt from "jsonwebtoken";
 import multer from "multer";
@@ -31,6 +32,7 @@ router.post("/host",verifyToken,getRoomsByHost)
 router.post("/",upload.any('files'),createRooms)
 router.post("/uploadpicture",uploadPicture);
 router.post("/delete/:id",verifyToken,deleteRoomById);
+router.post("/createVoters",createEmailTokens);
 
 
 process.on('SIGINT', function () {

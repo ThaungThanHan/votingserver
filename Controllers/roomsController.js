@@ -4,6 +4,16 @@ import * as dotenv from 'dotenv'
 dotenv.config()
 import fs from "fs"
 import QRCode from "qrcode";
+import nodemailer from "nodemailer";
+
+let transporter = nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port : 465,
+    auth: {
+      user: "hanvotingapp@gmail.com", // generated ethereal user
+      pass: "bixgqgxvahaltfzx", // generated ethereal password
+    },
+  });
 
 const roomsSchema = new mongoose.Schema({
     _id:String,
@@ -16,7 +26,8 @@ const roomsSchema = new mongoose.Schema({
     voters_limit:Number,
     num_participants:Number,
     participants:Array,
-    winner:Object
+    winner:Object,
+    votersList:Array
 },{collection:"voting_rooms"},{versionKey:false})
 const roomsModel = mongoose.model("Rooms",roomsSchema)
 
@@ -115,6 +126,7 @@ export const createRooms = async(req,res) => {
                 num_participants:num_participants,
                 participants:updatedParticipants[0],
                 winner:winner,
+                votersList:[]
             })
             await roomData.save();
             res.send(`Voting room with ID ${_id} is successfully created!`)
@@ -182,4 +194,42 @@ export const getRoomsByHost = async(req,res) => {
     }catch(err){
         console.log(err)
     }
+}
+
+const getRandomInt = (max) => {
+    return Math.floor(Math.random() * max);
+}
+export const createEmailTokens = async(req,res) => {
+    try{
+        const roomId = req.body.id;
+        const emailArray = req.body.emailList;
+        const votersAddress = [];
+        emailArray.map(email=>{
+            votersAddress.push({email:email,token:getRandomInt(999999,1000000)});
+        })
+        votersAddress.map(async voter=>{
+                const votersList = await roomsModel.findByIdAndUpdate(roomId,{$push:{votersList:{
+                    email:voter.email,token:voter.token
+                }}});
+                votersList.save();
+            })
+        votersAddress.map((add)=>{
+            sendEmailVoters(add.email,add.token);
+        })
+        res.send("Voters created and sent emails accordingly.")
+    }catch(err){
+        console.log(err)
+    }
+}
+
+const sendEmailVoters = async(email,token) => {
+    await transporter.sendMail({
+        from: 'hanvotingapp@gmail.com', // sender address
+        to: email, // list of receivers
+        subject: "Hello", // Subject line
+        text: "Greetings! You have been invited to make a vote. Please enter your token before voting.", // plain text body
+        html: `
+        <b>Your token:${token}</b>`
+        , // html body
+    })
 }
