@@ -158,35 +158,60 @@ export const createRooms = async(req,res) => {
 export const uploadPicture = async(req,res) => {
     res.send(req.files)
 }
-export const voteById = async (req,res) => {
-    try{
-        const roomId = req.params.id;
-        const optionId = req.body.id;
-        const currentVotes = req.body.votes;
-        const numOfvoters = req.body.num_voters;
-        const votedOptionData = await roomsModel.findOneAndUpdate(
-            {"_id":roomId,"participants.id":optionId},
-            {
-                $set:{
-                    "participants.$[element].votes":currentVotes+1
-                }
-            },{
-                "arrayFilters":[
-                    {
-                        "element.id":req.body.id
-                    }
-                ]
-            }
-        )
-        const increaseNumVoters = await roomsModel.findByIdAndUpdate(roomId,{num_voters:numOfvoters+1})
-        votedOptionData.save();
-        increaseNumVoters.save();
-        res.send(`voted for ${optionId}`)
-    }catch{
-
+export const voteById = async (req, res) => {
+    try {
+      const roomId = req.params.id;
+      const roomById = await roomsModel.findById(roomId);
+      const optionId = req.body.id;
+      const currentVotes = req.body.votes;
+      const numOfVoters = req.body.num_voters;
+      const voterToken = req.body.token;
+  
+      for (const voter of roomById.votersList) {
+        if (voterToken === voter.token) {
+          const tokenData = roomById.votersList.filter(voter=>voter.token == voterToken);
+          if(tokenData[0].voteStatus == false){
+            const voterData = await roomsModel.findOneAndUpdate(
+            { "_id": roomId, "votersList.token": voterToken },
+            { $set: { "votersList.$[element].voteStatus": true } },
+            { arrayFilters: [{ "element.token": voterToken }] }
+          );
+            await voterData.save();
+                    const votedOptionData = await roomsModel.findOneAndUpdate(
+                        {"_id":roomId,"participants.id":optionId},
+                        {
+                            $set:{
+                                "participants.$[element].votes":currentVotes+1
+                            }
+                        },{
+                            "arrayFilters":[
+                                {
+                                    "element.id":req.body.id
+                                }
+                            ]
+                        }
+                    )
+                   const increaseNumVoters = await roomsModel.findByIdAndUpdate(roomId,{num_voters:numOfVoters+1})
+                   votedOptionData.save();
+                   increaseNumVoters.save();
+            res.status(200).send(`voted for ${optionId}`);    
+            return;
+          }else{
+            console.log("ALREADY VOTED!")
+            res.status(500).send("Voter already voted once!");
+          }
+        
+          return; // Exit the function after sending the response
+        }
+      }
+  
+      // Voter not found
+      res.status(404).send("Voter not found");
+    } catch (error) {
+      console.error("Error voting:", error);
+      res.status(500).send("Error voting");
     }
-}
-
+  };
 export const getRoomsByHost = async(req,res) => {
     try{
         const Rooms = await roomsModel.find({host:req.body.userId})
@@ -209,7 +234,7 @@ export const createEmailTokens = async(req,res) => {
         })
         votersAddress.map(async voter=>{
                 const votersList = await roomsModel.findByIdAndUpdate(roomId,{$push:{votersList:{
-                    email:voter.email,token:voter.token
+                    email:voter.email,token:voter.token,voteStatus:false
                 }}});
                 votersList.save();
             })
@@ -232,4 +257,25 @@ const sendEmailVoters = async(email,token) => {
         <b>Your token:${token}</b>`
         , // html body
     })
+}
+
+// VerifyAccessCode
+export const verifyAccessCode = async(req,res) => {
+    try{
+        const roomId = req.body.id;
+        const accessCode = req.body.accessCode;
+        const roomById = await roomsModel.findById(roomId);    
+        if(roomById.votersList.length > 0){
+            roomById.votersList.forEach(voter=>{
+            if(voter.token == accessCode){
+                res.send(voter);
+            }
+        })
+        res.status(401).json({error:`Acess code ${accessCode} is invalid`});
+        }else{
+            res.status(500).json({error:`No invited voters in this room`})
+        }
+    }catch(err){
+        console.log(err)
+    }
 }

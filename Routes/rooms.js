@@ -1,7 +1,7 @@
 import {mongoose,Schema} from "mongoose";
 import express from "express";
 import { createRooms, getRoomById, createEmailTokens,getRoomsByHost, voteById, 
-    deleteRoomById, uploadPicture } from "../Controllers/roomsController.js";
+    deleteRoomById, uploadPicture, verifyAccessCode } from "../Controllers/roomsController.js";
 const router = express.Router();
 import jwt from "jsonwebtoken";
 import multer from "multer";
@@ -33,7 +33,7 @@ router.post("/",upload.any('files'),createRooms)
 router.post("/uploadpicture",uploadPicture);
 router.post("/delete/:id",verifyToken,deleteRoomById);
 router.post("/createVoters",createEmailTokens);
-
+router.post("/verifyAccessCode",verifyAccessCode);
 
 process.on('SIGINT', function () {
     upload.cleanup();
