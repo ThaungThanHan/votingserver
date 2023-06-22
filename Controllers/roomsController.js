@@ -228,21 +228,39 @@ export const createEmailTokens = async(req,res) => {
     try{
         const roomId = req.body.id;
         const emailArray = req.body.emailList;
+        const roomById = await roomsModel.findById(roomId);    
         const votersAddress = [];
-        emailArray.map(email=>{
-            votersAddress.push({email:email,token:getRandomInt(999999,1000000)});
-        })
-        votersAddress.map(async voter=>{
+        if(roomById.voters_limit > roomById.votersList.length){
+            const votersDiff = roomById.voters_limit - roomById.votersList.length;
+            const ArrayGreaterDiff = (diff,arrayLength) => {
+                return (diff - (diff - arrayLength)) - (arrayLength - diff);
+            }
+            const ArrayLessDiff = (diff,arrayLength) => {
+                return (diff - (diff - arrayLength));
+            }
+            if(emailArray.length > votersDiff){
+                for(let i = 0; i < ArrayGreaterDiff(votersDiff,emailArray.length);i++){
+                    votersAddress.push({email:emailArray[i],token:getRandomInt(999999,1000000)})
+                }
+            }else{
+                for(let i = 0; i < ArrayLessDiff(votersDiff,emailArray.length);i++){
+                    votersAddress.push({email:emailArray[i],token:getRandomInt(999999,1000000)})
+                }
+            }
+
+            votersAddress.map(async voter=>{
                 const votersList = await roomsModel.findByIdAndUpdate(roomId,{$push:{votersList:{
                     email:voter.email,token:voter.token,voteStatus:false
                 }}});
                 votersList.save();
             })
-        votersAddress.map((add)=>{
-            sendEmailVoters(add.email,add.token);
-        })
-        res.send("Voters created and sent emails accordingly.")
-    }catch(err){
+            votersAddress.map((add)=>{
+                sendEmailVoters(add.email,add.token);
+            })
+            res.send("Voters created and sent emails accordingly.")
+        }else{
+            res.status(500).json({error:`Voters limit exceeded`})
+    }}catch(err){
         console.log(err)
     }
 }
@@ -257,6 +275,32 @@ const sendEmailVoters = async(email,token) => {
         <b>Your token:${token}</b>`
         , // html body
     })
+}
+
+// Remove Voter from Voting list
+export const removeVoterFromList = async(req,res) => {
+    try{
+        const roomId = req.body.id;
+        const voterEmail = req.body.email;
+        const roomById = await roomsModel.findById(roomId);    
+        roomById.votersList.map(voter=>{
+            if(voter.email == voterEmail){
+                if(voter.voteStatus == false){
+                    roomsModel.findOneAndUpdate(
+                        {_id:roomId},
+                        {$pull:{votersList:{email:voterEmail}}},
+                        {new:true}
+                    ).then(updatedVoters=>res.status(200).send("Voter removed")).catch(err=>console.log(err));
+                }else{
+                    res.status(500).send("Voter already voted!")
+                }
+            }else{
+                res.status(500).send("Voter not found!")
+            }
+        })
+    }catch(err){
+        console.error(err);
+    }
 }
 
 // VerifyAccessCode
