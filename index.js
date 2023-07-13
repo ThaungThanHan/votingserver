@@ -11,7 +11,7 @@ const App = express();
 const PORT = process.env.PORT;
 App.use(bodyParser.json());
 App.use(cors({
-    origin:'http://localhost:3000',
+    origin:'https://hanvotingapp.vercel.app',
     optionsSuccessStatus: 200,
     allowedHeaders:'Content-Type, Authorization',
 }));
@@ -19,7 +19,7 @@ App.use(cors({
 const uri = process.env.MONGODB_URI;
 const connectDB = async() => {
     try{
-        await mongoose.connect(uri,{dbName:process.env.MONGODB_DBNAME});
+        await mongoose.connect(`${uri}`,{dbName:`${process.env.MONGODB_DBNAME}`});
         console.log("DB Successfully connected!")
     }catch(err){
         console.error(err);

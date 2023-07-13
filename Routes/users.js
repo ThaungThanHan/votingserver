@@ -7,6 +7,6 @@ dotenv.config()
 router.get(`/verifyUser`,verifyUser)
 router.post(`/signup`,SignUpUser);
 router.post(`/login`,LoginUser);
-router.post(`/users/:id`,getUser);
+router.get(`/users/:id`,getUser);
 
 export default router;

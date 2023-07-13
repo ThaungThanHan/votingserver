@@ -255,7 +255,7 @@ export const createEmailTokens = async(req,res) => {
                 votersList.save();
             })
             votersAddress.map((add)=>{
-                sendEmailVoters(add.email,add.token);
+                sendEmailVoters(add.email,add.token,roomById.roomName,roomById._id);
             })
             res.send("Voters created and sent emails accordingly.")
         }else{
@@ -265,14 +265,19 @@ export const createEmailTokens = async(req,res) => {
     }
 }
 
-const sendEmailVoters = async(email,token) => {
+const sendEmailVoters = async(email,token,roomName,roomId) => {
     await transporter.sendMail({
         from: 'hanvotingapp@gmail.com', // sender address
         to: email, // list of receivers
-        subject: "Hello", // Subject line
+        subject: "You have been invited to cast a vote!", // Subject line
         text: "Greetings! You have been invited to make a vote. Please enter your token before voting.", // plain text body
         html: `
-        <b>Your token:${token}</b>`
+        <p>Greetings! You have been invited to make a vote at "${roomName}".</p>
+        <p>Please view more info via this link: <a href="https://hanvotingapp.vercel.app/rooms/${roomId}">Click here</a>
+        </p>
+
+        <b>Please use this access code to bypass security:${token}</b>
+        `
         , // html body
     })
 }
